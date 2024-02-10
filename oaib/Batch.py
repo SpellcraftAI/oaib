@@ -47,6 +47,8 @@ class Batch:
     log_path : str, default: `"oaib.txt"`
         The file path for logging the progress and errors of batch processing.
         Defaults to "oaib.txt".
+    **client_args
+        Additional keyword arguments to pass to the OpenAI client.
     """
 
     def __init__(
@@ -55,16 +57,17 @@ class Batch:
         tpm: int = 10_000,
         workers: int = 8,
         safety: float = 0.1,
-        silent=False,
+        silent: bool = False,
         api_key: str or None = os.environ.get("OPENAI_API_KEY"),
         logdir: str or None = "oaib.txt",
+        **client_kwargs
     ):
         if not api_key:
             raise ValueError(
                 "No OpenAI API key found. Please provide an `api_key` parameter or set the `OPENAI_API_KEY` environment variable."
             )
 
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(api_key=api_key, **client_kwargs)
 
         self.rpm = rpm
         self.tpm = tpm
@@ -80,6 +83,7 @@ class Batch:
 
         self.__workers = set()
         self.__processing = set()
+        self.__callbacks = set()
 
         self.__current = SimpleNamespace(rpm=0, tpm=0)
         self.__totals = SimpleNamespace(requests=0, tokens=0, queued=0)
@@ -90,6 +94,10 @@ class Batch:
             signal.SIGINT,
             lambda code, stack: create_task(self.stop(code, stack))
         )
+
+    def __clear_log(self):
+        with open(self.logdir, "w") as file:
+            file.write("")
 
     def log(self, *messages, worker: int or None = None):
         now = datetime.now()
@@ -118,6 +126,7 @@ class Batch:
             await cancel_all({
                 self.__clock,
                 *self.__processing,
+                *self.__callbacks,
                 *self.__workers,
             })
 
@@ -168,22 +177,16 @@ class Batch:
             if self.__stopped.is_set():
                 break
 
-    async def _fetch(self, request, i=None):
+    async def _process(self, request, i=None):
         endpoint, func, args, kwargs = request
-        self.log(f"FETCHING | {kwargs}", worker=i)
+        self.log(f"PROCESSING | {kwargs}", worker=i)
 
         try:
             response = await func(*args, **kwargs)
 
         except Exception as e:
             self.log(f"PROCESSING ERROR | {e}", worker=i)
-            return None
-
-        return response
-
-    async def _process(self, request, i=None):
-        endpoint, func, args, kwargs = request
-        response = await self._fetch(request, i)
+            return
 
         headers = response.headers
         response = response.parse()
@@ -204,11 +207,11 @@ class Batch:
         self.log(f"PROCESSED | {kwargs}", worker=i)
 
         if self._callback:
-            await self._callback(row)
-            self.log("CALLBACK | Done", worker=i)
-
-        # Tick for every new processed request.
-        self._tick()
+            callback = create_task(self._callback(row))
+            self.__callbacks.add(callback)
+            callback.add_done_callback(
+                lambda _: self.__callbacks.remove(callback)
+            )
 
     def _next(self, i):
         try:
@@ -227,6 +230,10 @@ class Batch:
 
         processing = create_task(self._process(request, i))
         self.__processing.add(processing)
+        processing.add_done_callback(
+            lambda _: self.__processing.remove(processing)
+        )
+
         return True
 
     async def __worker(self, i):
@@ -244,9 +251,14 @@ class Batch:
                 )
 
                 now = time()
-                delay = 60 / self.rpm
                 avg_tpr = (now - self._start) / (self.__totals.requests or 1)
+
+                # The RPM does not need a safety threshold because it is known
+                # in advance, but we still apply a 1% reduction to minimize
+                # going over on small timescales.
+                effective_rpm = 0.99 * self.rpm
                 effective_tpm = (1 - self.safety) * self.tpm
+                rpm_delay = 60 / self.rpm
 
                 start = now
                 while self.__current.tpm + avg_tpr >= effective_tpm and not self.__stopped.is_set():
@@ -257,7 +269,7 @@ class Batch:
                     await sleep(0.1)
                 end = time()
 
-                remaining = delay - (end - start)
+                remaining = rpm_delay - (end - start)
                 if remaining > 0:
                     await sleep(remaining)
 
@@ -275,6 +287,7 @@ class Batch:
         self._start = time()
         self._last_tick = None
 
+        self.__clear_log()
         self.__stopped.clear()
         self.__clock = create_task(self._watch())
 
@@ -330,8 +343,12 @@ class Batch:
         # If the run was successful, it needs to be stopped. Finish processing
         # existing requests first.
         if not self.__stopped.is_set():
-            self.log("FINISHING PROCESSING")
-            await wait([*self.__processing, *self.__workers], return_when=ALL_COMPLETED, timeout=2)
+            self.log("FINISHING PROCESSING | 5 second timeout")
+            await wait(
+                [*self.__processing, *self.__callbacks, *self.__workers],
+                return_when=ALL_COMPLETED,
+                timeout=5
+            )
             await self.stop()
 
         self.log("RETURNING OUTPUT")
