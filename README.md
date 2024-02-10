@@ -345,7 +345,10 @@ Run took 12.58s.
    average number of tokens per request) drops below 90% of the limit.
 
   
-2. There's an error with TPM/RPM progress bar display in Jupyter Notebooks. This
+2. By default, important logs are stored at `oaib.txt`.  This can be disabled
+   using the `silent` flag.
+
+3. There's an error with TPM/RPM progress bar display in Jupyter Notebooks. This
    is caused by a `tqdm.notebook` bug where only the initial totals (here, our
    limits) are used to calculate the width of the bar. The text percentage
    displays are accurate.

@@ -1,4 +1,3 @@
-from .utils import setup
 from oaib import Auto
 
 

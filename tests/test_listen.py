@@ -1,4 +1,3 @@
-from .utils import setup
 from oaib import Batch
 from oaib.utils import race
 

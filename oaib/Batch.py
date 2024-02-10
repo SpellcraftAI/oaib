@@ -94,6 +94,10 @@ class Batch:
             lambda code, stack: create_task(self.stop(code, stack))
         )
 
+    def __clear_log(self):
+        with open(self.logdir, "w") as file:
+            file.write("")
+
     def log(self, *messages, worker: int or None = None):
         now = datetime.now()
         timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -278,6 +282,7 @@ class Batch:
         self._start = time()
         self._last_tick = None
 
+        self.__clear_log()
         self.__stopped.clear()
         self.__clock = create_task(self._watch())
 
