@@ -25,6 +25,8 @@ jobs:
     permissions:
       id-token: write
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
     - name: Build
       run: pip3 install build && python3 -m build
     - name: Publish package distributions to PyPI
