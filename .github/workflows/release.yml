@@ -23,7 +23,9 @@ jobs:
       name: pypi
       url: https://pypi.org/p/oaib
     permissions:
-      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
     steps:
+    - name: Build
+      run: pip3 install build && python3 -m build
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
