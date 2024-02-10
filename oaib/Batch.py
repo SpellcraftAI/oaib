@@ -47,6 +47,8 @@ class Batch:
     log_path : str, default: `"oaib.txt"`
         The file path for logging the progress and errors of batch processing.
         Defaults to "oaib.txt".
+    **client_args
+        Additional keyword arguments to pass to the OpenAI client.
     """
 
     def __init__(
@@ -55,16 +57,17 @@ class Batch:
         tpm: int = 10_000,
         workers: int = 8,
         safety: float = 0.1,
-        silent=False,
+        silent: bool = False,
         api_key: str or None = os.environ.get("OPENAI_API_KEY"),
         logdir: str or None = "oaib.txt",
+        **client_kwargs
     ):
         if not api_key:
             raise ValueError(
                 "No OpenAI API key found. Please provide an `api_key` parameter or set the `OPENAI_API_KEY` environment variable."
             )
 
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(api_key=api_key, **client_kwargs)
 
         self.rpm = rpm
         self.tpm = tpm
