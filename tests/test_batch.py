@@ -3,20 +3,21 @@ from oaib import Batch
 
 
 async def test_batch():
-    batch = Batch(rpm=100, tpm=1000, workers=5)
+    n = 10
+    batch = Batch(rpm=60, tpm=1000, workers=5)
 
-    for i in range(20):
+    for i in range(n):
         await batch.add("chat.completions.create", model="gpt-4", messages=[{"role": "user", "content": "say hello"}])
 
     chats = await batch.run()
-    assert len(chats), "Chat batch should return results"
+    assert len(chats) == n, f"Chat batch should return {n} results"
     print(chats)
 
-    for i in range(20):
+    for i in range(n):
         await batch.add("embeddings.create", model="text-embedding-3-large", input="hello world")
 
     embeddings = await batch.run()
-    assert len(embeddings), "Embeddings batch should return results"
+    assert len(embeddings) == n, f"Embeddings batch should return {n} results"
     print(embeddings)
 
     chat = chats.iloc[0].get("result")

@@ -26,9 +26,3 @@ async def test_listen():
     await running
     print(batch.output)
     assert len(batch.output) == n, f"Should get {n} results"
-
-    # task.cancel()
-    # try:
-    #     await task
-    # except CancelledError:
-    #     pass
