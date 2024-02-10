@@ -83,6 +83,7 @@ class Batch:
 
         self.__workers = set()
         self.__processing = set()
+        self.__callbacks = set()
 
         self.__current = SimpleNamespace(rpm=0, tpm=0)
         self.__totals = SimpleNamespace(requests=0, tokens=0, queued=0)
@@ -125,6 +126,7 @@ class Batch:
             await cancel_all({
                 self.__clock,
                 *self.__processing,
+                *self.__callbacks,
                 *self.__workers,
             })
 
@@ -205,8 +207,11 @@ class Batch:
         self.log(f"PROCESSED | {kwargs}", worker=i)
 
         if self._callback:
-            await self._callback(row)
-            self.log("CALLBACK | Done", worker=i)
+            callback = create_task(self._callback(row))
+            self.__callbacks.add(callback)
+            callback.add_done_callback(
+                lambda _: self.__callbacks.remove(callback)
+            )
 
     def _next(self, i):
         try:
@@ -339,7 +344,11 @@ class Batch:
         # existing requests first.
         if not self.__stopped.is_set():
             self.log("FINISHING PROCESSING | 5 second timeout")
-            await wait([*self.__processing, *self.__workers], return_when=ALL_COMPLETED, timeout=5)
+            await wait(
+                [*self.__processing, *self.__callbacks, *self.__workers],
+                return_when=ALL_COMPLETED,
+                timeout=5
+            )
             await self.stop()
 
         self.log("RETURNING OUTPUT")
