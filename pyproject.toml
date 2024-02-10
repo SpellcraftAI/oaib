@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oaib"
+version = "0.0.1"
+description = "A modern namespace package for OpenAI utilities."
+authors = [{ name = "CTJ Lewis", email = "lewis@spellcraft.org" }]
+license = { text = "MIT" }
+readme = "README.md"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "pandas>=2.2.0",
+    "tqdm>=4.66.1",
+    "openai>=1.11.0"
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+filterwarnings = "ignore::DeprecationWarning:pytest:"
+
+[tool.setuptools]
+packages = ["oaib"]
