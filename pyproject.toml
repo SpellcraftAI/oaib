@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "oaib"
 version = "0.0.1"
-description = "A modern namespace package for OpenAI utilities."
+description = "A Python library for making rate-limited, async batch requests to the OpenAI API."
 authors = [{ name = "CTJ Lewis", email = "lewis@spellcraft.org" }]
 license = { text = "MIT" }
 readme = "README.md"
