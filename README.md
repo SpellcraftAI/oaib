@@ -337,7 +337,7 @@ Run took 12.58s.
 ## Notes
 
 1. It is not possible to perfectly guarantee the tokens per minute limit is not
-   breached, because we cannot know the total token usage until the response
+   breached because we cannot know the total token usage until the response
    comes back.
    
    Use the `safety` param to set the rate limit tolerance.  By default it is set
@@ -348,7 +348,8 @@ Run took 12.58s.
 2. By default, important logs are stored at `oaib.txt`.  This can be disabled
    using the `silent` flag.
 
-3. There's an error with TPM/RPM progress bar display in Jupyter Notebooks. This
-   is caused by a `tqdm.notebook` bug where only the initial totals (here, our
-   limits) are used to calculate the width of the bar. The text percentage
-   displays are accurate.
+3. There's an error with TPM/RPM progress bar display in Jupyter Notebooks for
+   the `Auto` class only. This is caused by a `tqdm.notebook` bug where only the
+   initial totals (here, our limits) are used to calculate the width of the bar,
+   and the `Auto` class updates these values only after the first request. The
+   text percentage displays are accurate.
