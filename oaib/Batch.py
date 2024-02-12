@@ -344,11 +344,9 @@ class Batch:
         # existing requests first.
         if not self.__stopped.is_set():
             self.log("FINISHING PROCESSING | 5 second timeout")
-            await wait(
-                [*self.__processing, *self.__callbacks, *self.__workers],
-                return_when=ALL_COMPLETED,
-                timeout=5
-            )
+            await gather(*self.__processing)
+            await gather(*self.__workers)
+            await gather(*self.__callbacks)
             await self.stop()
 
         self.log("RETURNING OUTPUT")
