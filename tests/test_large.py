@@ -9,7 +9,7 @@ async def test_long():
     for i in range(n):
         await batch.add(
             "chat.completions.create",
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             max_tokens=4000,
             messages=[{"role": "user", "content": "say hello and goodbye " * m}]
         )

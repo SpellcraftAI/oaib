@@ -6,7 +6,7 @@ async def test_auto():
 
     n = 20
     for i in range(n):
-        await batch.add("chat.completions.create", model="gpt-4", messages=[{"role": "user", "content": "say hello"}])
+        await batch.add("chat.completions.create", model="gpt-3.5-turbo", messages=[{"role": "user", "content": "say hello"}])
 
     chats = await batch.run()
     assert len(chats) == n, f"Chat batch should return {n} results"

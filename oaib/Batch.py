@@ -60,7 +60,8 @@ class Batch:
         silent: bool = False,
         api_key: str or None = os.environ.get("OPENAI_API_KEY"),
         logdir: str or None = "oaib.txt",
-        **client_kwargs
+        index: list[str] or None = None,
+        ** client_kwargs
     ):
         if not api_key:
             raise ValueError(
@@ -74,6 +75,7 @@ class Batch:
         self.safety = safety
         self.silent = silent
         self.logdir = logdir
+        self.index = index
 
         self.__num_workers = workers
 
@@ -178,7 +180,7 @@ class Batch:
                 break
 
     async def _process(self, request, i=None):
-        endpoint, func, args, kwargs = request
+        endpoint, func, args, kwargs, metadata = request
         self.log(f"PROCESSING | {kwargs}", worker=i)
 
         try:
@@ -192,9 +194,12 @@ class Batch:
         response = response.parse()
         tokens = response.usage.total_tokens
 
-        row = pd.DataFrame(
-            [{"endpoint": endpoint, **kwargs, "result": response.dict()}]
-        )
+        row = pd.DataFrame([{
+            **metadata,
+            "endpoint": endpoint,
+            **kwargs,
+            "result": response.model_dump()
+        }])
 
         # Store one copy of response headers - for use by Auto subclass.
         if self._headers is None:
@@ -345,9 +350,14 @@ class Batch:
         if not self.__stopped.is_set():
             self.log("FINISHING PROCESSING | 5 second timeout")
             await gather(*self.__processing)
-            await gather(*self.__workers)
             await gather(*self.__callbacks)
+            await cancel_all(self.__workers)
             await self.stop()
+
+        if self.index:
+            self.log("INDEX | Setting index")
+            self.output.set_index(self.index, inplace=True)
+            self.output.sort_index(inplace=True)
 
         self.log("RETURNING OUTPUT")
         print(f"\nRun took {time() - start:.2f}s.\n")
@@ -381,6 +391,7 @@ class Batch:
     async def add(
         self,
         endpoint="chat.completions.create",
+        metadata: dict = {},
         *args,
         **kwargs
     ):
@@ -391,6 +402,8 @@ class Batch:
         ----------
         endpoint : str, default: `"chat.completions.create"`
             The OpenAI API endpoint to call, e.g., 'chat.completions.create' or 'embeddings.create'.
+        metadata : dict, default: `None`
+            A dictionary containing additional data to be added to this observation row in the DataFrame.
         *args 
             Positional arguments to pass to the OpenAI API endpoint function.
         **kwargs
@@ -404,7 +417,7 @@ class Batch:
         func = getattr_dot(self.client.with_raw_response, endpoint)
 
         # Add the request to the queue.
-        request = (endpoint, func, args, kwargs)
+        request = (endpoint, func, args, kwargs, metadata)
         model = kwargs.get("model")
         await self.__queue.put(request)
 
