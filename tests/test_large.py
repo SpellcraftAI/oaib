@@ -1,7 +1,7 @@
 from oaib import Auto, Batch
 
 
-async def test_long():
+async def test_large_auto():
     batch = Auto()
 
     # Large batch - Auto (fast)
@@ -21,8 +21,14 @@ async def test_long():
     chat = chats.iloc[0].get("result")
     assert chat['choices'], "Should get valid chat completions"
 
-    # Large batch - Batch (slow)
+
+async def test_large_batch():
     batch = Batch()
+
+    # Large batch - Batch (slow)
+    n = 5_000
+    m = 10
+
     for i in range(n):
         await batch.add(
             "chat.completions.create",
