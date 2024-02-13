@@ -363,7 +363,7 @@ class Batch:
             self.log("FINISHING PROCESSING | 5 second timeout")
             await gather(*self.__processing)
             await gather(*self.__callbacks)
-            await cancel_all(self.__workers)
+            await gather(*self.__workers)
             await self.stop()
 
         if self.index:
