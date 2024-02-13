@@ -353,3 +353,176 @@ Run took 12.58s.
    initial totals (here, our limits) are used to calculate the width of the bar,
    and the `Auto` class updates these values only after the first request. The
    text percentage displays are accurate.
+
+
+
+### Metadata and Index
+
+You can add custom metadata to your observations with `add(metadata={...}`, and
+set the index for the DataFrame with `Batch(index=[...])` and
+`Auto(index=[...])`.
+
+
+```python
+from oaib import Batch
+
+n = 5
+batch = Batch(rpm=1000, tpm=10000, workers=5, index=["difficulty", "i"])
+difficulties = ["easy", "medium", "hard"]
+
+for difficulty in difficulties:
+    for i in range(n):
+        await batch.add(
+            "chat.completions.create",
+            metadata={"difficulty": difficulty, "i": i},
+            model="gpt-3.5-turbo",
+            messages=[{
+                "role": "user", 
+                "content": f"difficulty: {difficulty}. write a math problem."
+            }]
+        )
+
+await batch.run()
+```
+
+```
+✅ DONE: 100%|█████████| 15/15 [00:01<00:00, 10.52req/s]
+RPM:  56%|████████████████████                | 631.0/1000
+TPM:     |                                    | 10781.0/?
+
+Run took 1.43s.
+```
+
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th>endpoint</th>
+      <th>model</th>
+      <th>messages</th>
+      <th>result</th>
+    </tr>
+    <tr>
+      <th>difficulty</th>
+      <th>i</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="5" valign="top">easy</th>
+      <th>0</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: easy...</td>
+      <td>{'id': 'chatcmpl-8rdiFkLTnjs4LbX2ZUKyb1UaRcPwH...</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: easy...</td>
+      <td>{'id': 'chatcmpl-8rdiFtEcz6CEvO8K9jZpAdbFaaJ3o...</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: easy...</td>
+      <td>{'id': 'chatcmpl-8rdiFEmy4TfO4iR3aJbh4u9lgAD1W...</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: easy...</td>
+      <td>{'id': 'chatcmpl-8rdiFVw5YuHY8WhuNqJjyJcFO9Mhs...</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: easy...</td>
+      <td>{'id': 'chatcmpl-8rdiGoYqWA5wH3xoFKVl8pRGGTuDZ...</td>
+    </tr>
+    <tr>
+      <th rowspan="5" valign="top">hard</th>
+      <th>0</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: hard...</td>
+      <td>{'id': 'chatcmpl-8rdiG8ZAUhcsBOtgtPuOjblzEo14a...</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: hard...</td>
+      <td>{'id': 'chatcmpl-8rdiGgl9uEe4ASQgt5uzwMpeJhnU6...</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: hard...</td>
+      <td>{'id': 'chatcmpl-8rdiGfVkiZqrE1p2TxeKnCxc2zzUb...</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: hard...</td>
+      <td>{'id': 'chatcmpl-8rdiGdKxmYC6mS4QSuiW3HjsMRW05...</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: hard...</td>
+      <td>{'id': 'chatcmpl-8rdiGqTe3MVy8FGJ6qtVAjxmMODy6...</td>
+    </tr>
+    <tr>
+      <th rowspan="5" valign="top">medium</th>
+      <th>0</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: medi...</td>
+      <td>{'id': 'chatcmpl-8rdiGsk7ohvIVwzuFMfO3cH9zNLW4...</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: medi...</td>
+      <td>{'id': 'chatcmpl-8rdiG64Y66W8CZZ9MI4xiVNHheHiF...</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: medi...</td>
+      <td>{'id': 'chatcmpl-8rdiGGmXfXx0uRuKafeKODGQe42vz...</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: medi...</td>
+      <td>{'id': 'chatcmpl-8rdiG95XCozUiFXY7ryA4rSfzbwRk...</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>chat.completions.create</td>
+      <td>gpt-3.5-turbo</td>
+      <td>[{'role': 'user', 'content': 'difficulty: medi...</td>
+      <td>{'id': 'chatcmpl-8rdiGi6nF5FLMdPIYrkrYgI15Yfcw...</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+

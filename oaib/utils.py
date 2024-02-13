@@ -63,7 +63,7 @@ EXAMPLE = """
     for i in range(5):
         await batch.add(
             "chat.completions.create", 
-            model="gpt-4", 
+            model="gpt-3.5-turbo", 
             messages=[{"role": "user", "content": "say hello"}]
         )
 

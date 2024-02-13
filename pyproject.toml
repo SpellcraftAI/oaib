@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oaib"
-version = "1.0.1"
+version = "1.1.0"
 requires-python = ">=3.9"
 description = "A Python library for making rate-limited, async batch requests to the OpenAI API."
 authors = [{ name = "CTJ Lewis", email = "lewis@spellcraft.org" }]

@@ -6,7 +6,7 @@ async def test_batch():
     batch = Batch(rpm=60, tpm=1000, workers=5)
 
     for i in range(n):
-        await batch.add("chat.completions.create", model="gpt-4", messages=[{"role": "user", "content": "say hello"}])
+        await batch.add("chat.completions.create", model="gpt-3.5-turbo", messages=[{"role": "user", "content": "say hello"}])
 
     chats = await batch.run()
     assert len(chats) == n, f"Chat batch should return {n} results"
@@ -36,7 +36,7 @@ async def test_callback():
 
     counter = 0
     for i in range(n):
-        await batch.add("chat.completions.create", model="gpt-4", messages=[{"role": "user", "content": "say hello"}])
+        await batch.add("chat.completions.create", model="gpt-3.5-turbo", messages=[{"role": "user", "content": "say hello"}])
 
     results = await batch.run(callback=callback)
     assert counter == n, "Callback should be called for each result"

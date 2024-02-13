@@ -11,8 +11,8 @@ from tqdm.auto import tqdm
 from openai import AsyncOpenAI
 
 from asyncio import ALL_COMPLETED
-from asyncio import Lock, Queue, Event, QueueEmpty, CancelledError
-from asyncio import create_task, gather, wait, sleep, all_tasks
+from asyncio import Lock, Queue, Event, QueueEmpty, CancelledError, TimeoutError
+from asyncio import create_task, gather, wait, wait_for, sleep, all_tasks
 
 from .utils import EXAMPLE, getattr_dot, cancel_all, get_limits
 from .utils import race, close_queue
@@ -40,6 +40,8 @@ class Batch:
         we don't know how many tokens a response will contain before we get it.
     silent : bool, default: `False`
         If set to True, suppresses the progress bar and logging output.
+    timeout : int, default: `60`
+        The maximum time to wait for a single request to complete, in seconds.
     api_key : str, default: `os.environ.get("OPENAI_API_KEY")`
         The API key used for authentication with the OpenAI API. If not
         provided, the class attempts to use an API_KEY constant defined
@@ -58,9 +60,11 @@ class Batch:
         workers: int = 8,
         safety: float = 0.1,
         silent: bool = False,
+        timeout: int = 60,
         api_key: str or None = os.environ.get("OPENAI_API_KEY"),
         logdir: str or None = "oaib.txt",
-        **client_kwargs
+        index: list[str] or None = None,
+        ** client_kwargs
     ):
         if not api_key:
             raise ValueError(
@@ -73,7 +77,9 @@ class Batch:
         self.tpm = tpm
         self.safety = safety
         self.silent = silent
+        self.timeout = timeout
         self.logdir = logdir
+        self.index = index
 
         self.__num_workers = workers
 
@@ -161,6 +167,7 @@ class Batch:
         self.__progress.tpm.n = self.__current.tpm
         self.__progress.tpm.total = self.tpm
 
+        self.__progress.main.refresh()
         self.__progress.tpm.refresh()
         self.__progress.rpm.refresh()
 
@@ -178,11 +185,18 @@ class Batch:
                 break
 
     async def _process(self, request, i=None):
-        endpoint, func, args, kwargs = request
+        endpoint, func, args, kwargs, metadata = request
         self.log(f"PROCESSING | {kwargs}", worker=i)
 
         try:
-            response = await func(*args, **kwargs)
+            [response] = await wait_for(
+                gather(func(*args, **kwargs)),
+                timeout=self.timeout
+            )
+
+        except TimeoutError:
+            self.log(f"TIMEOUT | {self.timeout}s | {kwargs}", worker=i)
+            return
 
         except Exception as e:
             self.log(f"PROCESSING ERROR | {e}", worker=i)
@@ -192,9 +206,12 @@ class Batch:
         response = response.parse()
         tokens = response.usage.total_tokens
 
-        row = pd.DataFrame(
-            [{"endpoint": endpoint, **kwargs, "result": response.dict()}]
-        )
+        row = pd.DataFrame([{
+            **metadata,
+            "endpoint": endpoint,
+            **kwargs,
+            "result": response.model_dump()
+        }])
 
         # Store one copy of response headers - for use by Auto subclass.
         if self._headers is None:
@@ -345,9 +362,14 @@ class Batch:
         if not self.__stopped.is_set():
             self.log("FINISHING PROCESSING | 5 second timeout")
             await gather(*self.__processing)
-            await gather(*self.__workers)
             await gather(*self.__callbacks)
+            await gather(*self.__workers)
             await self.stop()
+
+        if self.index:
+            self.log("INDEX | Setting index")
+            self.output.set_index(self.index, inplace=True)
+            self.output.sort_index(inplace=True)
 
         self.log("RETURNING OUTPUT")
         print(f"\nRun took {time() - start:.2f}s.\n")
@@ -381,6 +403,7 @@ class Batch:
     async def add(
         self,
         endpoint="chat.completions.create",
+        metadata: dict = {},
         *args,
         **kwargs
     ):
@@ -391,6 +414,8 @@ class Batch:
         ----------
         endpoint : str, default: `"chat.completions.create"`
             The OpenAI API endpoint to call, e.g., 'chat.completions.create' or 'embeddings.create'.
+        metadata : dict, default: `None`
+            A dictionary containing additional data to be added to this observation row in the DataFrame.
         *args 
             Positional arguments to pass to the OpenAI API endpoint function.
         **kwargs
@@ -404,7 +429,7 @@ class Batch:
         func = getattr_dot(self.client.with_raw_response, endpoint)
 
         # Add the request to the queue.
-        request = (endpoint, func, args, kwargs)
+        request = (endpoint, func, args, kwargs, metadata)
         model = kwargs.get("model")
         await self.__queue.put(request)
 
