@@ -346,7 +346,7 @@ Run took 12.58s.
 
   
 2. By default, important logs are stored at `oaib.txt`.  This can be disabled
-   using the `silent` flag.
+   using `loglevel=0`.
 
 3. There's an error with TPM/RPM progress bar display in Jupyter Notebooks for
    the `Auto` class only. This is caused by a `tqdm.notebook` bug where only the

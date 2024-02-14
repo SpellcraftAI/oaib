@@ -38,7 +38,7 @@ class Batch:
         to `0.1`, which means the engine will wait until the current TPM drops
         below 90% of the limit, to prevent going over. This is necessary because
         we don't know how many tokens a response will contain before we get it.
-    verbose : int, default: `2`
+    loglevel : int, default: `1`
         If set to 0, suppresses the progress bar and logging output. If set to 1,
         logs include metadata only. If set to 2, logs include both data and
         metadata for each request.
@@ -61,7 +61,7 @@ class Batch:
         tpm: int = 10_000,
         workers: int = 8,
         safety: float = 0.1,
-        verbose: int = 2,
+        loglevel: int = 1,
         timeout: int = 60,
         api_key: str or None = os.environ.get("OPENAI_API_KEY"),
         logdir: str or None = "oaib.txt",
@@ -72,15 +72,16 @@ class Batch:
             raise ValueError(
                 "No OpenAI API key found. Please provide an `api_key` parameter or set the `OPENAI_API_KEY` environment variable."
             )
-        if verbose > 2:
-            raise ValueError(f"Allowable `verbose` values are 0, 1, or 2; found {verbose}")
+        if loglevel > 2:
+            raise ValueError(
+                f"Allowable `loglevel` values are 0, 1, or 2; found {loglevel}")
 
         self.client = AsyncOpenAI(api_key=api_key, **client_kwargs)
 
         self.rpm = rpm
         self.tpm = tpm
         self.safety = safety
-        self.verbose = verbose
+        self.loglevel = loglevel
         self.timeout = timeout
         self.logdir = logdir
         self.index = index
@@ -110,7 +111,7 @@ class Batch:
             file.write("")
 
     def log(self, *messages, worker: int or None = None):
-        if self.verbose > 0:
+        if self.loglevel > 0:
             now = datetime.now()
             timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -192,7 +193,7 @@ class Batch:
     async def _process(self, request, i=None):
         endpoint, func, kwargs, metadata = request
 
-        if self.verbose == 1:
+        if self.loglevel == 1:
             log_content = f"{metadata}"
         else:
             log_content = f"{metadata} | {kwargs}"
@@ -324,7 +325,7 @@ class Batch:
             for i in range(self.__num_workers)
         }
 
-        silence = self.verbose == 0
+        silence = self.loglevel == 0
 
         self.__progress.main = tqdm(
             total=self.__queue.qsize(),
