@@ -38,8 +38,10 @@ class Batch:
         to `0.1`, which means the engine will wait until the current TPM drops
         below 90% of the limit, to prevent going over. This is necessary because
         we don't know how many tokens a response will contain before we get it.
-    silent : bool, default: `False`
-        If set to True, suppresses the progress bar and logging output.
+    loglevel : int, default: `1`
+        If set to 0, suppresses the progress bar and logging output. If set to 1,
+        logs include metadata only. If set to 2, logs include both data and
+        metadata for each request.
     timeout : int, default: `60`
         The maximum time to wait for a single request to complete, in seconds.
     api_key : str, default: `os.environ.get("OPENAI_API_KEY")`
@@ -59,7 +61,7 @@ class Batch:
         tpm: int = 10_000,
         workers: int = 8,
         safety: float = 0.1,
-        silent: bool = False,
+        loglevel: int = 1,
         timeout: int = 60,
         api_key: str or None = os.environ.get("OPENAI_API_KEY"),
         logdir: str or None = "oaib.txt",
@@ -70,13 +72,16 @@ class Batch:
             raise ValueError(
                 "No OpenAI API key found. Please provide an `api_key` parameter or set the `OPENAI_API_KEY` environment variable."
             )
+        if loglevel > 2:
+            raise ValueError(
+                f"Allowable `loglevel` values are 0, 1, or 2; found {loglevel}")
 
         self.client = AsyncOpenAI(api_key=api_key, **client_kwargs)
 
         self.rpm = rpm
         self.tpm = tpm
         self.safety = safety
-        self.silent = silent
+        self.loglevel = loglevel
         self.timeout = timeout
         self.logdir = logdir
         self.index = index
@@ -106,15 +111,16 @@ class Batch:
             file.write("")
 
     def log(self, *messages, worker: int or None = None):
-        now = datetime.now()
-        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+        if self.loglevel > 0:
+            now = datetime.now()
+            timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
-        for message in messages:
-            prefix = f"WORKER {worker}" if worker else "MAIN"
-            message = " | ".join([prefix.rjust(8), timestamp, message])
+            for message in messages:
+                prefix = f"WORKER {worker}" if worker else "MAIN"
+                message = " | ".join([prefix.rjust(8), timestamp, message])
 
-            with open(self.logdir, "a") as file:
-                file.write(message + "\n")
+                with open(self.logdir, "a") as file:
+                    file.write(message + "\n")
 
     async def _cleanup(self):
         """
@@ -185,12 +191,18 @@ class Batch:
                 break
 
     async def _process(self, request, i=None):
-        endpoint, func, args, kwargs, metadata = request
-        self.log(f"PROCESSING | {kwargs}", worker=i)
+        endpoint, func, kwargs, metadata = request
+
+        if self.loglevel == 1:
+            log_content = f"{metadata}"
+        else:
+            log_content = f"{metadata} | {kwargs}"
+
+        self.log(f"PROCESSING | {log_content}", worker=i)
 
         try:
             [response] = await wait_for(
-                gather(func(*args, **kwargs)),
+                gather(func(**kwargs)),
                 timeout=self.timeout
             )
 
@@ -313,20 +325,22 @@ class Batch:
             for i in range(self.__num_workers)
         }
 
+        silence = self.loglevel == 0
+
         self.__progress.main = tqdm(
             total=self.__queue.qsize(),
-            unit='req', dynamic_ncols=True, disable=self.silent
+            unit='req', dynamic_ncols=True, disable=silence
         )
 
         self.__progress.rpm = tqdm(
             desc="RPM", total=self.rpm, unit='rpm',
-            dynamic_ncols=True, disable=self.silent,
+            dynamic_ncols=True, disable=silence,
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"
         )
 
         self.__progress.tpm = tqdm(
             desc="TPM", total=self.tpm, unit='tpm',
-            dynamic_ncols=True, disable=self.silent,
+            dynamic_ncols=True, disable=silence,
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"
         )
 
@@ -404,7 +418,6 @@ class Batch:
         self,
         endpoint="chat.completions.create",
         metadata: dict = {},
-        *args,
         **kwargs
     ):
         """
@@ -416,8 +429,6 @@ class Batch:
             The OpenAI API endpoint to call, e.g., 'chat.completions.create' or 'embeddings.create'.
         metadata : dict, default: `None`
             A dictionary containing additional data to be added to this observation row in the DataFrame.
-        *args 
-            Positional arguments to pass to the OpenAI API endpoint function.
         **kwargs
             Keyword arguments to pass to the OpenAI API endpoint function. Common kwargs include 'model' and input parameters like 'messages' for 'chat.completions.create' or 'input' for 'embeddings.create'.
 
@@ -429,7 +440,7 @@ class Batch:
         func = getattr_dot(self.client.with_raw_response, endpoint)
 
         # Add the request to the queue.
-        request = (endpoint, func, args, kwargs, metadata)
+        request = (endpoint, func, kwargs, metadata)
         model = kwargs.get("model")
         await self.__queue.put(request)
 
