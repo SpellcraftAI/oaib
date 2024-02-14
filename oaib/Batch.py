@@ -185,12 +185,12 @@ class Batch:
                 break
 
     async def _process(self, request, i=None):
-        endpoint, func, args, kwargs, metadata = request
+        endpoint, func, kwargs, metadata = request
         self.log(f"PROCESSING | {kwargs}", worker=i)
 
         try:
             [response] = await wait_for(
-                gather(func(*args, **kwargs)),
+                gather(func(**kwargs)),
                 timeout=self.timeout
             )
 
@@ -404,7 +404,6 @@ class Batch:
         self,
         endpoint="chat.completions.create",
         metadata: dict = {},
-        *args,
         **kwargs
     ):
         """
@@ -416,8 +415,6 @@ class Batch:
             The OpenAI API endpoint to call, e.g., 'chat.completions.create' or 'embeddings.create'.
         metadata : dict, default: `None`
             A dictionary containing additional data to be added to this observation row in the DataFrame.
-        *args 
-            Positional arguments to pass to the OpenAI API endpoint function.
         **kwargs
             Keyword arguments to pass to the OpenAI API endpoint function. Common kwargs include 'model' and input parameters like 'messages' for 'chat.completions.create' or 'input' for 'embeddings.create'.
 
@@ -429,7 +426,7 @@ class Batch:
         func = getattr_dot(self.client.with_raw_response, endpoint)
 
         # Add the request to the queue.
-        request = (endpoint, func, args, kwargs, metadata)
+        request = (endpoint, func, kwargs, metadata)
         model = kwargs.get("model")
         await self.__queue.put(request)
 
