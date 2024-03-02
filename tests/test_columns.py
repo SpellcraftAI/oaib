@@ -1,15 +1,17 @@
-from oaib import Batch
+from oaib import Batch, AzureConfig
+
+azure = AzureConfig()
 
 
 async def test_columns():
     n = 20
-    batch = Batch(rpm=1000, tpm=10000, workers=5)
+    batch = Batch(rpm=1000, tpm=10000, workers=5, azure=azure)
 
     for i in range(n):
         await batch.add(
             "chat.completions.create",
             metadata={"id": i},
-            model="gpt-3.5-turbo",
+            model="Research",
             messages=[{"role": "user", "content": "say hello"}]
         )
 
@@ -21,15 +23,21 @@ async def test_columns():
 
 async def test_index():
     n = 5
-    batch = Batch(rpm=1000, tpm=10000, workers=5, index=["difficulty", "i"])
-    difficulties = ["easy", "medium", "hard"]
+    batch = Batch(
+        rpm=1000,
+        tpm=10000,
+        workers=5,
+        index=["difficulty", "i"],
+        azure=azure
+    )
 
+    difficulties = ["easy", "medium", "hard"]
     for difficulty in difficulties:
         for i in range(n):
             await batch.add(
                 "chat.completions.create",
                 metadata={"difficulty": difficulty, "i": i},
-                model="gpt-3.5-turbo",
+                model="Research",
                 messages=[
                     {"role": "user", "content": f"difficulty: {difficulty}\nwrite a math problem."}
                 ]

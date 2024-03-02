@@ -8,12 +8,14 @@ from datetime import datetime
 from time import time
 from types import SimpleNamespace
 from tqdm.auto import tqdm
-from openai import AsyncOpenAI
+
+import openai
 
 from asyncio import ALL_COMPLETED
 from asyncio import Lock, Queue, Event, QueueEmpty, CancelledError, TimeoutError
 from asyncio import create_task, gather, wait, wait_for, sleep, all_tasks
 
+# from .config import AzureConfig
 from .utils import EXAMPLE, getattr_dot, cancel_all, get_limits
 from .utils import race, close_queue
 
@@ -63,20 +65,25 @@ class Batch:
         safety: float = 0.1,
         loglevel: int = 1,
         timeout: int = 60,
-        api_key: str or None = os.environ.get("OPENAI_API_KEY"),
+        azure=None,
+        api_key: str or None = None,
         logdir: str or None = "oaib.txt",
         index: list[str] or None = None,
         ** client_kwargs
     ):
+        api_key = api_key or (
+            os.environ.get("AZURE_OPENAI_KEY") if azure
+            else os.environ.get("OPENAI_API_KEY")
+        )
+
         if not api_key:
             raise ValueError(
                 "No OpenAI API key found. Please provide an `api_key` parameter or set the `OPENAI_API_KEY` environment variable."
             )
+
         if loglevel > 2:
             raise ValueError(
                 f"Allowable `loglevel` values are 0, 1, or 2; found {loglevel}")
-
-        self.client = AsyncOpenAI(api_key=api_key, **client_kwargs)
 
         self.rpm = rpm
         self.tpm = tpm
@@ -85,6 +92,18 @@ class Batch:
         self.timeout = timeout
         self.logdir = logdir
         self.index = index
+        self.azure = None
+
+        if azure:
+            azure = vars(azure)
+            self.azure = azure
+
+            self.client = openai.AsyncAzureOpenAI(
+                **{**azure, "api_key": api_key}, 
+                **client_kwargs
+            )
+        else:
+            self.client = openai.AsyncOpenAI(api_key=api_key, **client_kwargs)
 
         self.__num_workers = workers
 
@@ -110,8 +129,8 @@ class Batch:
         with open(self.logdir, "w") as file:
             file.write("")
 
-    def log(self, *messages, worker: int or None = None):
-        if self.loglevel > 0:
+    def log(self, *messages, worker: int or None = None, loglevel: int or None = None):
+        if (loglevel or self.loglevel) > 0:
             now = datetime.now()
             timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -227,6 +246,7 @@ class Batch:
 
         # Store one copy of response headers - for use by Auto subclass.
         if self._headers is None:
+            self.log(f"HEADERS | {dict(headers)}")
             self._headers = headers
 
         self.__totals.requests += 1
@@ -343,6 +363,11 @@ class Batch:
             dynamic_ncols=True, disable=silence,
             bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt}"
         )
+
+        if self.azure:
+            self.log(
+                f"USING AZURE | {self.azure}"
+            )
 
     async def listen(self, callback=None):
         """
