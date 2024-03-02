@@ -2,10 +2,18 @@ from asyncio import Event
 
 from .Batch import Batch
 from .utils import EXAMPLE, get_limits
+# from .config import config
 
 
 class Auto(Batch):
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if self.azure:
+            raise ValueError(
+                "Auto does not support Azure or custom APIs. Manually set your TPM and RPM with Batch."
+            )
+
         if "rpm" in kwargs or "tpm" in kwargs:
             raise ValueError(
                 "Auto does not allow you to manually set your RPM or TPM. They will be set automatically using the limits provided by OpenAI's response headers."
@@ -13,8 +21,6 @@ class Auto(Batch):
 
         self.__limits_loaded = Event()
         self.__model = None
-
-        super().__init__(*args, **kwargs)
 
     async def _process(self, *args, **kwargs):
         # If rate limits have not been loaded from response headers yet, do so.

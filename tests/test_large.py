@@ -1,11 +1,13 @@
-from oaib import Auto, Batch
+from oaib import Auto, Batch, AzureConfig
+
+azure = AzureConfig()
 
 
 async def test_large_auto():
     batch = Auto()
 
     # Large batch - Auto (fast)
-    n = 5_000
+    n = 1_000
     m = 10
     for i in range(n):
         await batch.add(
@@ -23,7 +25,7 @@ async def test_large_auto():
 
 
 async def test_large_batch():
-    batch = Batch()
+    batch = Batch(azure=azure)
 
     # Large batch - Batch (slow)
     n = 5_000

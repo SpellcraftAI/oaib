@@ -334,28 +334,6 @@ Run took 12.58s.
 <p>1000 rows × 4 columns</p>
 
 
-## Notes
-
-1. It is not possible to perfectly guarantee the tokens per minute limit is not
-   breached because we cannot know the total token usage until the response
-   comes back.
-   
-   Use the `safety` param to set the rate limit tolerance.  By default it is set
-   to 10%, and will wait until the predicted TPM (the current TPM plus the
-   average number of tokens per request) drops below 90% of the limit.
-
-  
-2. By default, important logs are stored at `oaib.txt`.  This can be disabled
-   using `loglevel=0`.
-
-3. There's an error with TPM/RPM progress bar display in Jupyter Notebooks for
-   the `Auto` class only. This is caused by a `tqdm.notebook` bug where only the
-   initial totals (here, our limits) are used to calculate the width of the bar,
-   and the `Auto` class updates these values only after the first request. The
-   text percentage displays are accurate.
-
-
-
 ### Metadata and Index
 
 You can add custom metadata to your observations with `add(metadata={...}`, and
@@ -525,4 +503,62 @@ Run took 1.43s.
 </table>
 </div>
 
+### Use with Microsoft Azure
+<sub>See [`tests/test_azure.py`](tests/test_azure.py).</sub>
+
+To use a Cognitive Services deployment:
+
+#### 1. Go to to `Azure OpenAI Studio > Chat playground > View Code`.
+
+This view will provide your Azure endpoint, API version, and API key.
+
+#### 2. Use `AzureConfig` to configure the Azure endpoint.
+
+With `AZURE_OPENAI_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_VERSION` env keys
+set:
+
+```python
+from oaib import Batch, AzureConfig
+
+# Auto is not supported for Azure.
+azure = AzureConfig()
+batch = Batch(azure=azure)
+```
+
+Or, manually:
+
+```python
+import os
+from oaib import Batch, AzureConfig
+
+azure = AzureConfig(
+  azure_endpoint = "https://spellcraft.openai.azure.com/", 
+  api_key=os.getenv("AZURE_OPENAI_KEY"),  
+  api_version="2024-02-15-preview"
+)
+
+# Auto is not supported for Azure.
+batch = Batch(azure=azure)
+```
+
+
+## Notes
+
+1. It is not possible to perfectly guarantee the tokens per minute limit is not
+   breached because we cannot know the total token usage until the response
+   comes back.
+   
+   Use the `safety` param to set the rate limit tolerance.  By default it is set
+   to 10%, and will wait until the predicted TPM (the current TPM plus the
+   average number of tokens per request) drops below 90% of the limit.
+
+  
+2. By default, important logs are stored at `oaib.txt`.  This can be disabled
+   using `loglevel=0`.
+
+3. There's an error with TPM/RPM progress bar display in Jupyter Notebooks for
+   the `Auto` class only. This is caused by a `tqdm.notebook` bug where only the
+   initial totals (here, our limits) are used to calculate the width of the bar,
+   and the `Auto` class updates these values only after the first request. The
+   text percentage displays are accurate.
 
