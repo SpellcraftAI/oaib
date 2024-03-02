@@ -514,7 +514,7 @@ This view will provide your Azure endpoint, API version, and API key.
 
 #### 2. Use `AzureConfig` to configure the Azure endpoint.
 
-With `AZURE_OPENAI_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_API_VERSION` env keys
+With `AZURE_OPENAI_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_VERSION` env keys
 set:
 
 ```python
